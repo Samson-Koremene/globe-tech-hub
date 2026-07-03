@@ -14,7 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          first_name: string | null
+          github: string | null
+          hobbies: string[]
+          id: string
+          last_name: string | null
+          linkedin: string | null
+          location: string | null
+          occupation: string | null
+          onboarded: boolean
+          passions: string[]
+          tagline: string | null
+          twitter: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          first_name?: string | null
+          github?: string | null
+          hobbies?: string[]
+          id: string
+          last_name?: string | null
+          linkedin?: string | null
+          location?: string | null
+          occupation?: string | null
+          onboarded?: boolean
+          passions?: string[]
+          tagline?: string | null
+          twitter?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          first_name?: string | null
+          github?: string | null
+          hobbies?: string[]
+          id?: string
+          last_name?: string | null
+          linkedin?: string | null
+          location?: string | null
+          occupation?: string | null
+          onboarded?: boolean
+          passions?: string[]
+          tagline?: string | null
+          twitter?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
