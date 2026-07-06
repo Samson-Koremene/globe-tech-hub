@@ -4,9 +4,11 @@ import { Globe, Twitter, Github, Linkedin, MapPin, ArrowLeft } from "lucide-reac
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { ProfilePageSkeleton } from "@/components/Skeletons";
 import {
   fetchProfileById,
   fetchFollowerCount,
+  fetchFollowingCount,
   fetchFollowing,
   follow,
   unfollow,
@@ -28,17 +30,26 @@ function MemberPage() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", id],
     queryFn: () => fetchProfileById(id),
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: followerCount = 0 } = useQuery({
     queryKey: ["followers", id],
     queryFn: () => fetchFollowerCount(id),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: followingCount = 0 } = useQuery({
+    queryKey: ["followingCount", id],
+    queryFn: () => fetchFollowingCount(id),
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: myFollowing = [] } = useQuery({
     queryKey: ["following", user?.id],
     queryFn: () => (user ? fetchFollowing(user.id) : Promise.resolve([])),
     enabled: !!user,
+    staleTime: 1000 * 60 * 5,
   });
 
   const isFollowing = myFollowing.includes(id);
@@ -51,6 +62,7 @@ function MemberPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["following", user?.id] });
+      qc.invalidateQueries({ queryKey: ["following_profiles", user?.id] });
       qc.invalidateQueries({ queryKey: ["followers", id] });
       toast.success(isFollowing ? "Unfollowed" : "Now following");
     },
@@ -59,9 +71,12 @@ function MemberPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <SiteHeader />
-        <div className="container-page py-20 text-muted-foreground">Loading…</div>
+        <div className="flex-1">
+          <ProfilePageSkeleton />
+        </div>
+        <SiteFooter />
       </div>
     );
   }
@@ -88,17 +103,17 @@ function MemberPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <section className="container-page max-w-4xl py-12">
+      <section className="container-page max-w-4xl py-8 sm:py-12">
         <Link to="/directory" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to directory
         </Link>
 
-        <div className="mt-8 grid gap-8 sm:grid-cols-[auto_1fr]">
+        <div className="mt-6 grid gap-6 sm:mt-8 sm:grid-cols-[auto_1fr] sm:gap-8">
           <MemberAvatar profile={profile} size="xl" />
           <div>
-            <h1 className="font-display text-4xl">{fullName(profile)}</h1>
+            <h1 className="font-display text-3xl sm:text-4xl">{fullName(profile)}</h1>
             {profile.occupation && (
-              <div className="mt-1 text-primary">{profile.occupation}</div>
+              <div className="mt-1 text-base text-primary sm:text-lg">{profile.occupation}</div>
             )}
             {profile.location && (
               <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -107,13 +122,13 @@ function MemberPage() {
               </div>
             )}
             {profile.tagline && (
-              <p className="mt-4 max-w-xl text-lg leading-relaxed">{profile.tagline}</p>
+              <p className="mt-4 max-w-xl text-base leading-relaxed sm:text-lg">{profile.tagline}</p>
             )}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               {isMe ? (
                 <Link
                   to="/settings"
-                  className="rounded-md border border-hairline bg-surface px-4 py-2 text-sm hover:bg-surface-2"
+                  className="inline-flex h-11 items-center justify-center rounded-md border border-hairline bg-surface px-4 text-sm hover:bg-surface-2 sm:h-auto sm:py-2"
                 >
                   Edit my profile
                 </Link>
@@ -126,22 +141,27 @@ function MemberPage() {
                   disabled={followMutation.isPending}
                   className={
                     isFollowing
-                      ? "rounded-md border border-hairline bg-surface px-4 py-2 text-sm hover:bg-surface-2"
-                      : "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                      ? "inline-flex h-11 items-center justify-center rounded-md border border-hairline bg-surface px-4 text-sm hover:bg-surface-2 sm:h-auto sm:py-2"
+                      : "inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 sm:h-auto sm:py-2"
                   }
                 >
                   {isFollowing ? "Following" : "Follow"}
                 </button>
               )}
-              <span className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{followerCount}</span> follower{followerCount === 1 ? "" : "s"}
-              </span>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>
+                  <span className="font-medium text-foreground">{followerCount}</span> follower{followerCount === 1 ? "" : "s"}
+                </span>
+                <span>
+                  <span className="font-medium text-foreground">{followingCount}</span> following
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-14 grid gap-10 sm:grid-cols-3">
-          <div className="sm:col-span-2 space-y-8">
+        <div className="mt-10 grid gap-8 sm:mt-14 sm:gap-10 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             {profile.bio && (
               <Section title="About">
                 <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground/90">{profile.bio}</p>
@@ -168,7 +188,7 @@ function MemberPage() {
                         href={s.href!}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 text-sm hover:bg-surface-2"
+                        className="flex h-11 items-center gap-2 rounded-md border border-hairline bg-surface px-3 text-sm hover:bg-surface-2 sm:h-auto sm:py-2"
                       >
                         <s.icon className="h-4 w-4 text-muted-foreground" />
                         {s.label}

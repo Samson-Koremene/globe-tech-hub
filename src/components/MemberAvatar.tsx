@@ -20,9 +20,11 @@ export function MemberAvatar({
   className?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    setLoaded(false);
     resolveAvatarUrl(profile.avatar_url).then((u) => {
       if (alive) setUrl(u);
     });
@@ -35,12 +37,23 @@ export function MemberAvatar({
     <div
       className={`${sizeMap[size]} ${className} relative shrink-0 overflow-hidden rounded-full bg-surface-2 ring-1 ring-hairline`}
     >
-      {url ? (
-        <img src={url} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center font-medium tracking-wide text-muted-foreground">
-          {initials(profile)}
-        </div>
+      {/* Initials fallback — always rendered, fades out when image loads */}
+      <div
+        className={`absolute inset-0 flex items-center justify-center font-medium tracking-wide text-muted-foreground transition-opacity duration-300 ${loaded ? "opacity-0" : "opacity-100"}`}
+      >
+        {initials(profile)}
+      </div>
+
+      {/* Avatar image — fades in on load */}
+      {url && (
+        <img
+          src={url}
+          alt=""
+          loading="eager"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        />
       )}
     </div>
   );

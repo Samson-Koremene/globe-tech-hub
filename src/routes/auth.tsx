@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { toast } from "sonner";
+import { Check, Circle, Eye, EyeOff } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 
 const searchSchema = z.object({
@@ -16,77 +18,222 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (s) => searchSchema.parse(s),
   head: () => ({
     meta: [
-      { title: "Sign in — Globe Tech Community" },
+      { title: "Authentication — Globe Tech Community" },
       { name: "description", content: "Sign in or create your Globe Tech Community profile." },
     ],
   }),
   component: AuthPage,
 });
 
+const signupSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email format"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[a-z]/, "Password must contain a lowercase letter")
+    .regex(/[0-9]/, "Password must contain a number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain a special character"),
+});
+
+const signinSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type SignupValues = z.infer<typeof signupSchema>;
+type SigninValues = z.infer<typeof signinSchema>;
+
+function PasswordStrength({ password }: { password?: string }) {
+  const pwd = password || "";
+  const checks = [
+    { label: "8+ characters", valid: pwd.length >= 8 },
+    { label: "Uppercase", valid: /[A-Z]/.test(pwd) },
+    { label: "Lowercase", valid: /[a-z]/.test(pwd) },
+    { label: "Number", valid: /[0-9]/.test(pwd) },
+    { label: "Special character", valid: /[^A-Za-z0-9]/.test(pwd) },
+  ];
+
+  return (
+    <div className="mt-2 text-xs space-y-1 bg-surface p-3 rounded-md border border-hairline">
+      <p className="font-medium text-foreground mb-2">Password requirements:</p>
+      {checks.map((c) => (
+        <div key={c.label} className="flex items-center gap-2">
+          {c.valid ? (
+            <Check className="h-3.5 w-3.5 text-green-500" />
+          ) : (
+            <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
+          )}
+          <span className={c.valid ? "text-foreground" : "text-muted-foreground"}>
+            {c.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Field({ error, children }: { error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1 relative pb-5">
+      {children}
+      {error && <div className="absolute bottom-0 left-0 text-xs text-red-500/90 font-medium">{error}</div>}
+    </div>
+  );
+}
+
 function AuthPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">(search.mode ?? "signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [loading, setLoading] = useState(false);
+  
+  const [showPwd, setShowPwd] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+  // Brute-force protection state
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  const {
+    register: registerSignup,
+    handleSubmit: handleSignupSubmit,
+    watch: watchSignup,
+    formState: { errors: signupErrors, isSubmitting: isSignupSubmitting },
+    reset: resetSignup,
+  } = useForm<SignupValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { firstName: "", lastName: "", email: "", password: "" },
+  });
+
+  const {
+    register: registerSignin,
+    handleSubmit: handleSigninSubmit,
+    formState: { errors: signinErrors, isSubmitting: isSigninSubmitting },
+    reset: resetSignin,
+  } = useForm<SigninValues>({
+    resolver: zodResolver(signinSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const watchSignupPassword = watchSignup("password");
 
   useEffect(() => {
     if (user) {
-      const next = search.next && search.next.startsWith("/") ? search.next : "/onboarding";
+      const next = search.next && search.next.startsWith("/") ? search.next : "/dashboard";
       navigate({ to: next });
     }
   }, [user, search.next, navigate]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: { first_name: firstName, last_name: lastName },
-          },
-        });
-        if (error) throw error;
-        toast.success("Welcome! Let's set up your profile.");
+  // Handle Cooldown Timer
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const interval = setInterval(() => {
+      const remaining = Math.ceil((cooldownUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setCooldownUntil(null);
+        setLoginAttempts(0);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        setCooldownRemaining(remaining);
       }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
+
+  const onSignup = async (data: SignupValues) => {
+    if (cooldownUntil) return toast.error(`Wait ${cooldownRemaining}s before trying.`);
+    
+    const emailLower = data.email.toLowerCase();
+    const commonTypos = ["@gmail.co", "@yahoo.co", "@hotmail.co", "@outlook.co", "@gmail.c"];
+    if (commonTypos.some(typo => emailLower.endsWith(typo))) {
+      return toast.error("Looks like a typo in your email domain. Did you mean .com?");
+    }
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: { first_name: data.firstName, last_name: data.lastName },
+        },
+      });
+      if (error) throw error;
+      toast.success("Welcome! Let's set up your profile.");
+    } catch (err: any) {
+      toast.error(err.message || "Sign up failed");
+    }
+  };
+
+  const onSignin = async (data: SigninValues) => {
+    if (cooldownUntil) return toast.error(`Wait ${cooldownRemaining}s before trying.`);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email: data.email, 
+        password: data.password 
+      });
+      
+      if (error) {
+        const newAttempts = loginAttempts + 1;
+        setLoginAttempts(newAttempts);
+        if (newAttempts >= 5) {
+          setCooldownUntil(Date.now() + 60 * 1000); // 60 seconds cooldown
+          throw new Error("Too many failed attempts. Please try again in 60 seconds.");
+        }
+        throw new Error("Invalid email or password");
+      }
+      setLoginAttempts(0);
+    } catch (err: any) {
+      toast.error(err.message || "Sign in failed");
     }
   };
 
   const google = async () => {
-    setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    setLoadingGoogle(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
     });
-    if (result.error) {
-      toast.error(result.error.message);
-      setLoading(false);
-    }
+    if (error) toast.error(error.message);
+    setLoadingGoogle(false);
   };
 
+  const isSubmitting = isSignupSubmitting || isSigninSubmitting;
+  const isButtonDisabled = isSubmitting || loadingGoogle || !!cooldownUntil;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <SiteHeader />
-      <section className="container-page grid min-h-[calc(100vh-4rem)] max-w-md place-items-center py-16">
-        <div className="w-full">
+      <section className="flex-1 container-page grid lg:grid-cols-2 gap-12 lg:gap-24 items-center py-12 sm:py-16">
+        {/* Left Side: Hero Image (Hidden on mobile) */}
+        <div className="hidden lg:block relative w-full h-[600px] rounded-3xl overflow-hidden border border-hairline shadow-2xl">
+          <img 
+            src="/hero-img.jpg" 
+            alt="Globe Tech Community Members" 
+            loading="eager"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 via-40% to-transparent" />
+          
+          <div className="absolute bottom-0 left-0 p-12 text-left">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 fill-mode-both">
+              <h2 className="font-display text-5xl text-white drop-shadow-lg">Find your people.</h2>
+              <p className="mt-4 text-white max-w-md text-lg leading-relaxed drop-shadow-md">
+                Join a thriving directory of developers, designers, and creators building the future together.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Form */}
+        <div className="w-full max-w-md mx-auto lg:mx-0 justify-self-center lg:justify-self-start lg:pl-8">
           <div className="font-mono text-[11px] uppercase tracking-widest text-primary">
             / {mode === "signin" ? "Sign in" : "Create account"}
           </div>
-          <h1 className="mt-3 font-display text-4xl leading-tight">
+          <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl">
             {mode === "signin" ? "Welcome back." : "Join the community."}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -96,9 +243,10 @@ function AuthPage() {
           </p>
 
           <button
+            type="button"
             onClick={google}
-            disabled={loading}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-md border border-hairline bg-surface px-4 py-2.5 text-sm font-medium hover:bg-surface-2 disabled:opacity-60"
+            disabled={isButtonDisabled}
+            className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-hairline bg-surface px-4 text-sm font-medium hover:bg-surface-2 disabled:opacity-60 transition-colors"
           >
             <GoogleIcon />
             Continue with Google
@@ -110,57 +258,108 @@ function AuthPage() {
             <div className="h-px flex-1 bg-hairline" />
           </div>
 
-          <form onSubmit={submit} className="space-y-3">
-            {mode === "signup" && (
-              <div className="grid grid-cols-2 gap-3">
-                <Input placeholder="First name" value={firstName} onChange={setFirstName} required />
-                <Input placeholder="Last name" value={lastName} onChange={setLastName} required />
+          {mode === "signup" ? (
+            <form onSubmit={handleSignupSubmit(onSignup)} className="space-y-1">
+              <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <Field error={signupErrors.firstName?.message}>
+                  <input {...registerSignup("firstName")} placeholder="First name" className="h-12 w-full rounded-md border border-hairline bg-surface px-3.5 text-sm outline-none transition-colors focus:border-primary/60" />
+                </Field>
+                <Field error={signupErrors.lastName?.message}>
+                  <input {...registerSignup("lastName")} placeholder="Last name" className="h-12 w-full rounded-md border border-hairline bg-surface px-3.5 text-sm outline-none transition-colors focus:border-primary/60" />
+                </Field>
               </div>
-            )}
-            <Input type="email" placeholder="you@domain.com" value={email} onChange={setEmail} required />
-            <Input type="password" placeholder="Password (min 6)" value={password} onChange={setPassword} required minLength={6} />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-            >
-              {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create profile"}
-            </button>
-          </form>
+              
+              <Field error={signupErrors.email?.message}>
+                <input {...registerSignup("email")} type="email" placeholder="you@domain.com" className="h-12 w-full rounded-md border border-hairline bg-surface px-3.5 text-sm outline-none transition-colors focus:border-primary/60" />
+              </Field>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+              <Field error={signupErrors.password?.message}>
+                <div className="relative">
+                  <input
+                    {...registerSignup("password")}
+                    type={showPwd ? "text" : "password"}
+                    placeholder="Password"
+                    className="h-12 w-full rounded-md border border-hairline bg-surface pl-3.5 pr-10 text-sm outline-none transition-colors focus:border-primary/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPwd ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
+              </Field>
+
+              <div className="pb-3 pt-1">
+                <PasswordStrength password={watchSignupPassword} />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isButtonDisabled}
+                className="mt-2 h-12 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity"
+              >
+                {isSubmitting ? "Please wait…" : cooldownUntil ? `Wait ${cooldownRemaining}s` : "Sign up"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSigninSubmit(onSignin)} className="space-y-1">
+              <Field error={signinErrors.email?.message}>
+                <input {...registerSignin("email")} type="email" placeholder="you@domain.com" className="h-12 w-full rounded-md border border-hairline bg-surface px-3.5 text-sm outline-none transition-colors focus:border-primary/60" />
+              </Field>
+              
+              <Field error={signinErrors.password?.message}>
+                <div className="relative">
+                  <input
+                    {...registerSignin("password")}
+                    type={showPwd ? "text" : "password"}
+                    placeholder="Password"
+                    className="h-12 w-full rounded-md border border-hairline bg-surface pl-3.5 pr-10 text-sm outline-none transition-colors focus:border-primary/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPwd ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
+              </Field>
+              
+              <div className="text-right pb-4 -mt-2">
+                <Link to="/reset-password" className="text-xs font-medium text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isButtonDisabled}
+                className="mt-2 h-12 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity"
+              >
+                {isSubmitting ? "Please wait…" : cooldownUntil ? `Wait ${cooldownRemaining}s` : "Sign in"}
+              </button>
+            </form>
+          )}
+
+          <div className="mt-8 text-center text-sm text-muted-foreground">
             {mode === "signin" ? (
               <>New here?{" "}
-                <button onClick={() => setMode("signup")} className="text-primary hover:underline">Create an account</button>
+                <button type="button" onClick={() => { setMode("signup"); setLoginAttempts(0); setCooldownUntil(null); resetSignup(); resetSignin(); }} className="font-medium text-primary hover:underline">Create an account</button>
               </>
             ) : (
               <>Already a member?{" "}
-                <button onClick={() => setMode("signin")} className="text-primary hover:underline">Sign in</button>
+                <button type="button" onClick={() => { setMode("signin"); resetSignup(); resetSignin(); }} className="font-medium text-primary hover:underline">Sign in</button>
               </>
             )}
           </div>
-          <div className="mt-2 text-center text-xs text-muted-foreground">
-            <Link to="/" className="hover:text-foreground">← Back home</Link>
+          <div className="mt-4 text-center text-xs text-muted-foreground">
+            <Link to="/" className="transition-colors hover:text-foreground">← Back home</Link>
           </div>
         </div>
       </section>
     </div>
-  );
-}
-
-function Input({
-  value, onChange, ...rest
-}: {
-  value: string;
-  onChange: (v: string) => void;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value">) {
-  return (
-    <input
-      {...rest}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-11 w-full rounded-md border border-hairline bg-surface px-3.5 text-sm outline-none transition-colors focus:border-primary/60"
-    />
   );
 }
 

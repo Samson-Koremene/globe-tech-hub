@@ -1,8 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { CategorySkeleton } from "@/components/Skeletons";
 import { fetchAllProfiles } from "@/lib/profile";
 
 export const Route = createFileRoute("/categories")({
@@ -18,9 +19,10 @@ export const Route = createFileRoute("/categories")({
 });
 
 function CategoriesPage() {
-  const { data: profiles = [] } = useQuery({
+  const { data: profiles = [], isLoading } = useQuery({
     queryKey: ["profiles", "all"],
-    queryFn: fetchAllProfiles,
+    queryFn: () => fetchAllProfiles(),
+    staleTime: 1000 * 60 * 5,
   });
 
   const groups = useMemo(() => {
@@ -39,17 +41,27 @@ function CategoriesPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <section className="container-page py-12">
+      <section className="container-page py-8 sm:py-12">
         <div className="font-mono text-[11px] uppercase tracking-widest text-primary">/ Categories</div>
-        <h1 className="mt-2 font-display text-4xl sm:text-5xl">By what they do & love.</h1>
-        <p className="mt-2 max-w-2xl text-muted-foreground">
+        <h1 className="mt-2 font-display text-3xl sm:text-4xl lg:text-5xl">By what they do & love.</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
           Categories emerge organically from what members put on their profiles.
         </p>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-3">
-          <Group title="Occupations" items={groups.occupations} />
-          <Group title="Passions" items={groups.passions} />
-          <Group title="Hobbies" items={groups.hobbies} />
+        <div className="mt-8 grid gap-8 sm:mt-12 sm:gap-10 lg:grid-cols-3">
+          {isLoading ? (
+            <>
+              <CategorySkeleton />
+              <CategorySkeleton />
+              <CategorySkeleton />
+            </>
+          ) : (
+            <>
+              <Group title="Occupations" paramKey="occupation" items={groups.occupations} />
+              <Group title="Passions" paramKey="passion" items={groups.passions} />
+              <Group title="Hobbies" paramKey="hobby" items={groups.hobbies} />
+            </>
+          )}
         </div>
       </section>
       <SiteFooter />
@@ -57,7 +69,7 @@ function CategoriesPage() {
   );
 }
 
-function Group({ title, items }: { title: string; items: [string, number][] }) {
+function Group({ title, paramKey, items }: { title: string; paramKey: "occupation" | "passion" | "hobby"; items: [string, number][] }) {
   return (
     <div>
       <div className="mb-4 flex items-baseline justify-between hairline-b pb-2">
@@ -72,6 +84,7 @@ function Group({ title, items }: { title: string; items: [string, number][] }) {
             <li key={label}>
               <Link
                 to="/directory"
+                search={{ [paramKey]: label } as any}
                 className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-foreground/90 hover:bg-surface"
               >
                 <span>{label}</span>
