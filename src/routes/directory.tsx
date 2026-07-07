@@ -116,10 +116,10 @@ function DirectoryPage() {
           )}
 
           {topTags.length > 0 && !activeFilterValue && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sm:flex-wrap sm:overflow-visible sm:pb-0">
               <button
                 onClick={clearFilter}
-                className={`chip ${!search.tag ? "!bg-primary/15 !text-primary !border-primary/40" : ""}`}
+                className={`chip shrink-0 whitespace-nowrap ${!search.tag ? "!bg-primary/15 !text-primary !border-primary/40" : ""}`}
               >
                 All
               </button>
@@ -127,7 +127,7 @@ function DirectoryPage() {
                 <button
                   key={t}
                   onClick={() => navigate({ search: { tag: search.tag === t ? undefined : t } })}
-                  className={`chip ${search.tag === t ? "!bg-primary/15 !text-primary !border-primary/40" : ""}`}
+                  className={`chip shrink-0 whitespace-nowrap ${search.tag === t ? "!bg-primary/15 !text-primary !border-primary/40" : ""}`}
                 >
                   {t}
                 </button>

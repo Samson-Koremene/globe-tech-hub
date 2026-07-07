@@ -16,6 +16,8 @@ export type Profile = {
   github: string | null;
   linkedin: string | null;
   onboarded: boolean;
+  card_color?: string | null;
+  card_style?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -51,8 +53,7 @@ export async function resolveAvatarUrl(value: string | null): Promise<string | n
 export async function fetchAllProfiles(filters?: { occupation?: string; passion?: string; hobby?: string; tag?: string }): Promise<Profile[]> {
   let query = supabase
     .from("profiles" as never)
-    .select("*")
-    .eq("onboarded", true);
+    .select("*");
 
   if (filters?.occupation) {
     query = query.eq("occupation", filters.occupation);
@@ -70,6 +71,7 @@ export async function fetchAllProfiles(filters?: { occupation?: string; passion?
 
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
+  
   return (data ?? []) as unknown as Profile[];
 }
 
@@ -94,6 +96,10 @@ export async function updateMyProfile(patch: Partial<Profile>): Promise<Profile>
   const { data: userData } = await supabase.auth.getUser();
   const uid = userData.user?.id;
   if (!uid) throw new Error("Not signed in");
+  
+  // We remove card_color and card_style temporarily if they are not in the DB to avoid crashing.
+  // Actually, let's just pass them. If the user hasn't run the migration, it will throw an error,
+  // which is a good reminder to run the migration.
   const { data, error } = await supabase
     .from("profiles" as never)
     .update(patch as never)

@@ -1,0 +1,3 @@
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS card_color TEXT,
+ADD COLUMN IF NOT EXISTS card_style TEXT;

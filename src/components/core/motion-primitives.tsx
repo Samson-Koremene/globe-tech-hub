@@ -175,3 +175,59 @@ export function InView({
     </motion.div>
   );
 }
+
+// Marquee — infinite horizontal scroll
+interface MarqueeProps {
+  children: React.ReactNode;
+  speed?: number; // px per second
+  pauseOnHover?: boolean;
+  className?: string;
+}
+
+export function Marquee({
+  children,
+  speed = 40,
+  pauseOnHover = true,
+  className,
+}: MarqueeProps) {
+  const [contentWidth, setContentWidth] = React.useState(0);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (contentRef.current) {
+      setContentWidth(contentRef.current.scrollWidth);
+    }
+  }, [children]);
+
+  const duration = contentWidth > 0 ? contentWidth / speed : 20;
+
+  return (
+    <div
+      className={cn("group relative overflow-hidden", className)}
+    >
+      {/* Fade edges */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-background to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-background to-transparent" />
+
+      <div
+        className={cn(
+          "flex w-max",
+          pauseOnHover && "group-hover:[animation-play-state:paused]"
+        )}
+        style={{
+          animation: `marquee-scroll ${duration}s linear infinite`,
+        }}
+      >
+        {/* Original set */}
+        <div ref={contentRef} className="flex shrink-0 gap-4">
+          {children}
+        </div>
+        {/* Duplicate for seamless loop */}
+        <div className="flex shrink-0 gap-4" aria-hidden>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+

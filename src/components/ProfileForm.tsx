@@ -7,6 +7,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { MemberAvatar } from "./MemberAvatar";
+import { CardStylePicker } from "./CardStylePicker";
 import { updateMyProfile, uploadAvatar, type Profile } from "@/lib/profile";
 
 const profileSchema = z.object({
@@ -39,6 +40,8 @@ export function ProfileForm({
   const navigate = useNavigate();
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
+  const [cardColor, setCardColor] = useState(profile.card_color || "default");
+  const [cardStyle, setCardStyle] = useState(profile.card_style || "soft");
   const [uploading, setUploading] = useState(false);
 
   const {
@@ -86,6 +89,8 @@ export function ProfileForm({
         github: data.github?.trim() || null,
         linkedin: data.linkedin?.trim() || null,
         avatar_url: avatarUrl,
+        card_color: cardColor,
+        card_style: cardStyle,
         ...(markOnboarded ? { onboarded: true } : {}),
       });
     },
@@ -230,6 +235,26 @@ export function ProfileForm({
             />
           </Field>
         </div>
+      </Section>
+
+      <Section title="Card appearance">
+        <CardStylePicker
+          color={cardColor}
+          onChangeColor={setCardColor}
+          style={cardStyle}
+          onChangeStyle={setCardStyle}
+          profile={{
+            ...profile,
+            first_name: watchFirstName,
+            last_name: watchLastName,
+            occupation: watch("occupation") ?? null,
+            location: watch("location") ?? null,
+            tagline: watch("tagline") ?? null,
+            passions: parseTags(watch("passions")),
+            hobbies: parseTags(watch("hobbies")),
+            avatar_url: avatarUrl,
+          }}
+        />
       </Section>
 
       <div className="hairline-t flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-end">

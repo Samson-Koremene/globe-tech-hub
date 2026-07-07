@@ -47,6 +47,8 @@ export const DEMO_PROFILES: DemoProfile[] = [
     onboarded: true,
     created_at: "2026-06-28T10:00:00Z",
     updated_at: "2026-06-28T10:00:00Z",
+    card_color: "emerald",
+    card_style: "minimal",
     isDemoProfile: true,
   },
   {
@@ -67,6 +69,8 @@ export const DEMO_PROFILES: DemoProfile[] = [
     onboarded: true,
     created_at: "2026-06-29T14:30:00Z",
     updated_at: "2026-06-29T14:30:00Z",
+    card_color: "rose",
+    card_style: "dark",
     isDemoProfile: true,
   },
   {
@@ -87,6 +91,8 @@ export const DEMO_PROFILES: DemoProfile[] = [
     onboarded: true,
     created_at: "2026-07-01T09:00:00Z",
     updated_at: "2026-07-01T09:00:00Z",
+    card_color: "sky",
+    card_style: "soft",
     isDemoProfile: true,
   },
   {
@@ -107,6 +113,8 @@ export const DEMO_PROFILES: DemoProfile[] = [
     onboarded: true,
     created_at: "2026-07-02T16:00:00Z",
     updated_at: "2026-07-02T16:00:00Z",
+    card_color: "violet",
+    card_style: "dark",
     isDemoProfile: true,
   },
 ];

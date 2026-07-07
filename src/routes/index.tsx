@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { MemberCard } from "@/components/MemberCard";
 import { MemberCardSkeleton } from "@/components/Skeletons";
 import { fetchAllProfiles } from "@/lib/profile";
-import { AnimatedCounter, AnimatedAccordion, InView } from "@/components/core/motion-primitives";
+import { AnimatedCounter, AnimatedAccordion, InView, Marquee } from "@/components/core/motion-primitives";
 import { DEMO_PROFILES, DEMO_STATS, DEMO_THRESHOLD } from "@/lib/demo-data";
 
 export const Route = createFileRoute("/")({
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { data: profiles = [] } = useQuery({
+  const { data: profiles = [], isLoading } = useQuery({
     queryKey: ["profiles", "all"],
     queryFn: () => fetchAllProfiles(),
     staleTime: 1000 * 60 * 5,
@@ -23,11 +23,12 @@ function Index() {
 
   // ── DEMO DATA — merge demo profiles when real count is below threshold ──
   // TODO: Remove demo data integration once real member count exceeds DEMO_THRESHOLD
-  const useDemo = profiles.length < DEMO_THRESHOLD;
+  // Only use demo data AFTER real data has loaded to prevent flash
+  const useDemo = !isLoading && profiles.length < DEMO_THRESHOLD;
   const featuredProfiles = useDemo
     ? [...profiles, ...DEMO_PROFILES.filter((d) => !profiles.some((p) => p.id === d.id))]
     : profiles;
-  const featured = featuredProfiles.slice(0, 6);
+  const featured = featuredProfiles;
 
   // ── STATS — add demo baseline numbers when community is small ──
   // TODO: Remove demo stats once real member count exceeds DEMO_THRESHOLD
@@ -162,14 +163,14 @@ function Index() {
 
           <div className="relative w-full">
             <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-primary/20 via-accent/15 to-secondary-blue/10 blur-3xl animate-pulse-slow" aria-hidden />
-            <div className="relative h-[280px] lg:h-[300px] w-full max-w-[340px] mx-auto lg:ml-auto lg:mr-4 mt-12 lg:mt-48">
+            <div className="relative h-[320px] lg:h-[300px] w-full max-w-[340px] mx-auto lg:ml-auto lg:mr-4 mt-32 lg:mt-48">
               {Array.from({ length: 4 }).map((_, i) => {
                 const isPlaceholder = i >= featuredProfiles.length;
                 const p = isPlaceholder ? null : featuredProfiles[i];
                 return (
                   <div
                     key={p ? p.id : `placeholder-${i}`}
-                    className={`absolute w-full transition-all duration-300 ease-out lg:hover:-translate-y-8 lg:hover:-rotate-2 hover:z-50 animate-in fade-in slide-in-from-bottom-8 fill-mode-both lg:cursor-pointer ${i > 0 ? 'hidden lg:block' : ''}`}
+                    className={`absolute w-full transition-all duration-300 ease-out lg:hover:-translate-y-8 lg:hover:-rotate-2 hover:z-50 animate-in fade-in slide-in-from-bottom-8 fill-mode-both lg:cursor-pointer`}
                     style={{ top: `-${i * 35}px`, left: `${i * 12}px`, right: `${i * 12}px`, zIndex: 40 - i, animationDelay: `${i * 150 + 400}ms` }}
                   >
                     <div className="rounded-xl overflow-hidden bg-background shadow-[0_10px_40px_rgb(0,0,0,0.15)] ring-1 ring-hairline/50 transition-shadow lg:hover:shadow-[0_20px_50px_rgb(0,0,0,0.25)]">
@@ -219,23 +220,42 @@ function Index() {
           </Link>
         </div>
 
-        {featured.length === 0 ? (
-          <EmptyState />
-        ) : (
+        {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map((p, idx) => (
-              <InView
-                key={p.id}
-                variants={{
-                  hidden: { opacity: 0, scale: 0.95, filter: "blur(4px)" },
-                  visible: { opacity: 1, scale: 1, filter: "blur(0px)" },
-                }}
-                delay={idx * 0.1}
-              >
-                <MemberCard profile={p} />
-              </InView>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <MemberCardSkeleton key={i} />
             ))}
           </div>
+        ) : featured.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <>
+            {/* Mobile: vertical stack */}
+            <div className="flex flex-col gap-4 sm:hidden">
+              {featured.slice(0, 6).map((p, idx) => (
+                <InView
+                  key={p.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  delay={idx * 0.05}
+                >
+                  <MemberCard profile={p} />
+                </InView>
+              ))}
+            </div>
+            {/* Desktop: scrolling marquee */}
+            <div className="hidden sm:block">
+              <Marquee speed={35} pauseOnHover className="py-2">
+                {featured.map((p) => (
+                  <div key={p.id} className="w-[320px] shrink-0">
+                    <MemberCard profile={p} />
+                  </div>
+                ))}
+              </Marquee>
+            </div>
+          </>
         )}
       </section>
 
@@ -253,7 +273,7 @@ function Index() {
               </Link>
             </div>
             
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex gap-3 overflow-x-auto pb-2 scrollbar-hide sm:flex-wrap sm:overflow-visible sm:pb-0">
               {popularTags.map((tag, idx) => (
                 <InView
                   key={tag.label + tag.type}
@@ -266,7 +286,7 @@ function Index() {
                   <Link
                     to="/directory"
                     search={{ [tag.type]: tag.label } as any}
-                    className="group inline-flex items-center rounded-full border border-hairline bg-surface px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/40 active:scale-[0.98]"
+                    className="group inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-hairline bg-surface px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/40 active:scale-[0.98]"
                   >
                     {tag.label}
                     <span className="ml-2 text-xs text-muted-foreground transition-colors group-hover:text-foreground/70">{tag.count}</span>
