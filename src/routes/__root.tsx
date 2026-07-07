@@ -72,7 +72,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "A searchable directory of developers, designers, founders, students and makers. Create a profile and find people worth knowing." },
       { name: "author", content: "Globe Tech Community" },
       { property: "og:title", content: "Globe Tech Community" },
-      { property: "og:description", content: "A searchable directory of people in tech worth knowing." },
+      { property: "og:description", content: "A searchable directory of peopl in tech worth knowing." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
