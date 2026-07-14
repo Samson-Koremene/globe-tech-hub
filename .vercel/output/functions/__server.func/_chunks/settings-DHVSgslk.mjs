@@ -1,0 +1,50 @@
+import { g as Link } from "../_libs/@tanstack/react-router+[...].mjs";
+import { a as require_jsx_runtime, n as useQuery } from "../_libs/react+tanstack__react-query.mjs";
+import { t as SiteHeader } from "./SiteHeader-DNzvs57J.mjs";
+import { r as ProfilePageSkeleton, u as fetchMyProfile } from "./Skeletons-DrV2HNKr.mjs";
+import { t as ProfileForm } from "./ProfileForm-BGBK5lnz.mjs";
+//#region dist/server/assets/settings-DHVSgslk.js
+var import_jsx_runtime = require_jsx_runtime();
+function SettingsPage() {
+	const { data: profile, isLoading } = useQuery({
+		queryKey: ["me"],
+		queryFn: fetchMyProfile,
+		staleTime: 1e3 * 60 * 5
+	});
+	if (isLoading || !profile) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "min-h-screen bg-background flex flex-col",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SiteHeader, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "flex-1",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfilePageSkeleton, {})
+		})]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "min-h-screen bg-background",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SiteHeader, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+			className: "container-page max-w-2xl py-8 sm:py-12",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "font-mono text-[11px] uppercase tracking-widest text-primary",
+					children: "/ Settings"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+					className: "mt-3 font-display text-3xl sm:text-4xl",
+					children: "My profile."
+				})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+					to: "/members/$id",
+					params: { id: profile.id },
+					className: "text-sm text-muted-foreground hover:text-foreground",
+					children: "View public page →"
+				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-8 sm:mt-10",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProfileForm, {
+					profile,
+					submitLabel: "Save changes"
+				})
+			})]
+		})]
+	});
+}
+//#endregion
+export { SettingsPage as component };
