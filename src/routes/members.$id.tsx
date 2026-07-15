@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Globe, Twitter, Github, Linkedin, MapPin, ArrowLeft } from "lucide-react";
+import { Globe, Twitter, Github, Linkedin, MapPin, ArrowLeft, Share2, Check } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -26,6 +27,14 @@ function MemberPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    toast.success("Profile link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", id],
@@ -148,7 +157,14 @@ function MemberPage() {
                   {isFollowing ? "Following" : "Follow"}
                 </button>
               )}
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <button
+                onClick={handleShare}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-hairline bg-surface px-4 text-sm hover:bg-surface-2 sm:h-auto sm:py-2"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
+                Share profile
+              </button>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground ml-2">
                 <span>
                   <span className="font-medium text-foreground">{followerCount}</span> follower{followerCount === 1 ? "" : "s"}
                 </span>

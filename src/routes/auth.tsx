@@ -241,8 +241,7 @@ function AuthPage() {
               ? "Sign in to your Globe Tech Community profile."
               : "A minute to sign up, five to fill out your profile."}
           </p>
-
-          <button
+          {/* <button
             type="button"
             onClick={google}
             disabled={isButtonDisabled}
@@ -256,7 +255,7 @@ function AuthPage() {
             <div className="h-px flex-1 bg-hairline" />
             or with email
             <div className="h-px flex-1 bg-hairline" />
-          </div>
+          </div> */}
 
           {mode === "signup" ? (
             <form onSubmit={handleSignupSubmit(onSignup)} className="space-y-1">
